@@ -48,13 +48,38 @@ input[type=file]{width:100%;color:var(--mist)}
 .nav .on{background:var(--moon);color:var(--ink)}
 #pv{width:100%;border-radius:12px;background:#000}
 [hidden]{display:none!important}
+#lib .it{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--line)}
+#lib .it:first-child{border-top:0}
+#lib .it span{font-size:14px;flex:1}
+#lib .btn{flex:0 0 auto;padding:0 12px}
 #dim{position:fixed;inset:0;z-index:9;background:#000;opacity:0;pointer-events:none;transition:opacity .8s;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:calc(env(safe-area-inset-top) + 18px) 0 calc(env(safe-area-inset-bottom) + 28px)}
 .dim #dim{opacity:1;pointer-events:auto}
 #dim .pill{background:none;border-color:#141830;color:#2c3454}
 #dim .btn{background:none;border-color:#141830;color:#2c3454;transition:all .3s}
 #dim.peek .pill,#dim.peek .btn{color:var(--moon);border-color:var(--line)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.55;background:radial-gradient(1.2px 1.2px at 12% 22%,#cfd8ff,transparent),radial-gradient(1px 1px at 82% 12%,#cfd8ff,transparent),radial-gradient(1.4px 1.4px at 66% 38%,#cfd8ff,transparent),radial-gradient(1px 1px at 25% 64%,#cfd8ff,transparent),radial-gradient(1.2px 1.2px at 90% 72%,#cfd8ff,transparent),radial-gradient(1px 1px at 8% 88%,#cfd8ff,transparent)}
+.card{background:linear-gradient(180deg,#1a2038,var(--dusk));box-shadow:0 14px 34px -22px #000}
+.card .btn{flex:1 1 130px}
+.btn{transition:transform .15s,filter .2s}
+.btn:active{transform:scale(.97)}
+.btn.pri:hover{filter:brightness(1.08)}
+summary{list-style:none;display:flex;justify-content:space-between;align-items:center}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";color:var(--mist);font-size:22px}
+details[open] summary::after{content:"\2013"}
+.card h3{font:600 15px/1.3 Georgia,"Iowan Old Style",serif;color:var(--mist);margin-top:4px}
+.rec{transition:box-shadow .3s,border-color .3s}
+.live .rec{border-color:var(--rose);box-shadow:0 0 0 7px rgba(229,143,168,.14)}
+@keyframes br{50%{box-shadow:0 0 0 1px var(--line),0 0 130px 26px rgba(143,180,255,.32)}}
+.live .moon{animation:br 5s ease-in-out infinite}
+.nav{position:sticky;top:6px;z-index:2;backdrop-filter:blur(8px)}
+#libD .it{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--line)}
+#libD .it:first-child{border-top:0}
+#libD .it span{font-size:14px;flex:1}
+#libD .btn{flex:0 0 auto;padding:0 12px}
 </style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 <div class="top"><div class="pill" role="timer"><b></b><span id="t">00:00:00</span></div></div>
@@ -62,6 +87,7 @@ input[type=file]{width:100%;color:var(--mist)}
 <main class="wrap">
   <nav class="nav" aria-label="Sections">
     <button class="on" data-v="recV">Record</button>
+    <button data-v="libV">Library</button>
     <button data-v="lockV">Unlock</button>
   </nav>
 
@@ -82,9 +108,10 @@ input[type=file]{width:100%;color:var(--mist)}
       <h2>Session finished</h2>
       <p class="small" id="info"></p>
       <div class="bar"><i id="fill"></i></div>
-      <div class="row" style="flex-wrap:nowrap">
+      <div class="row">
         <button class="btn" id="save">Save video</button>
         <button class="btn pri" id="send">Send to Discord</button>
+        <button class="btn pri" id="sendD">Send to Drive</button>
       </div>
     </div>
 
@@ -97,6 +124,29 @@ input[type=file]{width:100%;color:var(--mist)}
         <p class="small">Your password never leaves this device and isn’t saved. Without it, the parts can’t be opened.</p>
       </div>
     </details>
+
+    <details class="card">
+      <summary>Google Drive settings</summary>
+      <div class="in">
+        <label><span>Google client ID</span><input type="text" id="cid" placeholder="123456-abc.apps.googleusercontent.com" autocomplete="off"></label>
+        <p class="small">Uses the same password as above. Files go to your Drive, and only this app can see them.</p>
+      </div>
+    </details>
+  </section>
+
+  <section id="libV" class="wrap" style="padding:0" hidden>
+    <div class="card">
+      <h2>Your sessions</h2>
+      <p class="small">Videos you sent from this phone. They’re stored on Discord and play right here.</p>
+      <h3>Google Drive</h3>
+      <div id="libD"></div>
+      <button class="btn" id="rD">Load from Drive</button>
+      <h3>Discord</h3>
+      <div id="lib"></div>
+      <label><span>Password</span><input type="password" id="pw3" autocomplete="current-password"></label>
+      <p class="small" id="say3" aria-live="polite"></p>
+      <video id="pv3" controls playsinline hidden></video>
+    </div>
   </section>
 
   <section id="lockV" class="wrap" style="padding:0" hidden>
@@ -126,13 +176,14 @@ const say2=t=>{$('#say2').textContent=t};
 const stamp=()=>{const d=new Date();return ''+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'-'+pad(d.getHours())+pad(d.getMinutes())};
 let stream,rec,parts=[],blob,t0,dur=0,tk,lock,ext='webm',peekT,merged;
 
-try{$('#hook').value=localStorage.getItem('hook')||'';$('#mb').value=localStorage.getItem('mb')||'9.5'}catch(e){}
-const keep=()=>{try{localStorage.setItem('hook',$('#hook').value.trim());localStorage.setItem('mb',$('#mb').value)}catch(e){}};
-$('#hook').onchange=$('#mb').onchange=keep;
+try{$('#hook').value=localStorage.getItem('hook')||'';$('#mb').value=localStorage.getItem('mb')||'9.5';$('#cid').value=localStorage.getItem('cid')||'270484073927-pd13p9tu36bsi60rjh679f3dlna02k2k.apps.googleusercontent.com'}catch(e){}
+const keep=()=>{try{localStorage.setItem('hook',$('#hook').value.trim());localStorage.setItem('mb',$('#mb').value);localStorage.setItem('cid',$('#cid').value.trim())}catch(e){}};
+$('#hook').onchange=$('#mb').onchange=$('#cid').onchange=keep;
 
 document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('on',x===b));
-  ['recV','lockV'].forEach(id=>$('#'+id).hidden=id!==b.dataset.v);
+  ['recV','libV','lockV'].forEach(id=>$('#'+id).hidden=id!==b.dataset.v);
+  if(b.dataset.v==='libV')renderLib();
 });
 
 $('#rec').onclick=()=>rec&&rec.state==='recording'?stop():start();
@@ -218,7 +269,7 @@ $('#send').onclick=async()=>{
   keep();
   const btn=$('#send');btn.disabled=true;
   const salt=crypto.getRandomValues(new Uint8Array(16)),key=await deriveKey(pw,salt);
-  const n=Math.ceil(blob.size/size),id='study-'+stamp();
+  const n=Math.ceil(blob.size/size),id='study-'+stamp(),ids=[];
   for(let i=0;i<n;i++){
     say('Encrypting and sending part '+(i+1)+' of '+n+'…');
     const plain=await blob.slice(i*size,(i+1)*size).arrayBuffer(),iv=crypto.getRandomValues(new Uint8Array(12));
@@ -232,7 +283,7 @@ $('#send').onclick=async()=>{
       let r;
       try{r=await fetch(url+'?wait=true',{method:'POST',body:fd})}
       catch(e){btn.disabled=false;return say('Couldn’t reach Discord. Check your connection and the webhook URL, then send again.')}
-      if(r.ok)break;
+      if(r.ok){const j=await r.json().catch(()=>({}));ids.push(j.id);break}
       if(r.status===429&&tries<5){
         const j=await r.json().catch(()=>({}));
         await new Promise(s=>setTimeout(s,(j.retry_after||2)*1000+300));continue;
@@ -243,7 +294,8 @@ $('#send').onclick=async()=>{
     $('#fill').style.width=((i+1)/n*100)+'%';
   }
   btn.disabled=false;
-  say('All '+n+' parts are on your server. Keep your password safe.');
+  if(ids.length===n&&ids.every(Boolean))setLib(getLib().concat({id,ext,n,ids,dur,size:blob.size,at:Date.now()}));
+  say('All '+n+' parts are on your server. Watch it any time in the Library tab.');
 };
 
 $('#unlock').onclick=async()=>{
@@ -268,6 +320,144 @@ $('#unlock').onclick=async()=>{
   }catch(e){say2('Wrong password, or a part is damaged.')}
 };
 $('#sv').onclick=()=>merged&&dl(merged.b,merged.n);
+
+const getLib=()=>{try{return JSON.parse(localStorage.getItem('lib')||'[]')}catch(e){return[]}};
+const setLib=a=>{try{localStorage.setItem('lib',JSON.stringify(a))}catch(e){}};
+const say3=t=>{$('#say3').textContent=t};
+function renderLib(){
+  const box=$('#lib'),a=getLib();box.textContent='';
+  if(!a.length){const p=document.createElement('p');p.className='small';p.textContent='Nothing here yet. Send a recording to Discord and it will show up.';box.append(p);return}
+  a.slice().reverse().forEach(x=>{
+    const d=document.createElement('div');d.className='it';
+    const t=document.createElement('span');
+    t.textContent=new Date(x.at).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})+', '+fmt(x.dur||0)+' long, '+(x.size/1e6).toFixed(0)+' MB';
+    const w=document.createElement('button');w.className='btn pri';w.textContent='Watch';w.onclick=()=>watch(x);
+    const r=document.createElement('button');r.className='btn';r.textContent='Remove';
+    r.onclick=()=>{setLib(getLib().filter(y=>y.id!==x.id));renderLib()};
+    d.append(t,w,r);box.append(d);
+  });
+}
+let pvUrl;
+async function watch(x){
+  const hook=$('#hook').value.trim().split('?')[0],pw=$('#pw3').value;
+  if(!/\/api\/webhooks\//.test(hook))return say3('Add your webhook URL in Discord settings on the Record tab first.');
+  if(!pw)return say3('Enter your password first.');
+  const bufs=[];
+  try{
+    for(let i=0;i<x.ids.length;i++){
+      say3('Downloading part '+(i+1)+' of '+x.ids.length+'…');
+      const mr=await fetch(hook+'/messages/'+x.ids[i]);
+      if(!mr.ok)throw new Error('msg '+mr.status);
+      const m=await mr.json(),fr=await fetch(m.attachments[0].url);
+      if(!fr.ok)throw new Error('file '+fr.status);
+      bufs.push(new Uint8Array(await fr.arrayBuffer()));
+    }
+  }catch(e){return say3('Couldn’t download from Discord ('+e.message+'). The message may have been deleted, or the webhook is different from the one used to send it.')}
+  try{
+    let key;const out=[];
+    for(const b of bufs){key=key||await deriveKey(pw,b.slice(0,16));out.push(await crypto.subtle.decrypt({name:'AES-GCM',iv:b.slice(16,28)},key,b.slice(28)))}
+    if(pvUrl)URL.revokeObjectURL(pvUrl);
+    pvUrl=URL.createObjectURL(new Blob(out,{type:'video/'+x.ext}));
+    const v=$('#pv3');v.src=pvUrl;v.hidden=false;v.play().catch(()=>{});say3('Playing.');
+  }catch(e){say3('Wrong password.')}
+}
+
+let gtok='',gexp=0;
+function gAuth(){
+  return new Promise((ok,no)=>{
+    if(gtok&&Date.now()<gexp)return ok(gtok);
+    const cid=$('#cid').value.trim();
+    if(!cid)return no(new Error('Add your Google client ID in Drive settings first.'));
+    if(!window.google||!google.accounts)return no(new Error('Google sign-in hasn’t loaded. Check your connection and reload.'));
+    google.accounts.oauth2.initTokenClient({
+      client_id:cid,scope:'https://www.googleapis.com/auth/drive.file',
+      callback:r=>{if(r.error)return no(new Error(r.error));gtok=r.access_token;gexp=Date.now()+(r.expires_in-60)*1000;ok(gtok)},
+      error_callback:e=>no(new Error(e.type||'Sign-in was cancelled.'))
+    }).requestAccessToken();
+  });
+}
+
+$('#sendD').onclick=async()=>{
+  const pw=$('#pw').value;
+  if(pw.length<8)return say('Choose a password of at least 8 characters in Discord settings. You need it to unlock the video.');
+  let tok;try{tok=await gAuth()}catch(e){return say(e.message)}
+  keep();
+  const btn=$('#sendD');btn.disabled=true;$('#fill').style.width='0';
+  const salt=crypto.getRandomValues(new Uint8Array(16)),key=await deriveKey(pw,salt),SZ=8e6,n=Math.ceil(blob.size/SZ),bits=[];
+  for(let i=0;i<n;i++){
+    say('Encrypting part '+(i+1)+' of '+n+'…');
+    const plain=await blob.slice(i*SZ,(i+1)*SZ).arrayBuffer(),iv=crypto.getRandomValues(new Uint8Array(12));
+    const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,plain));
+    const o=new Uint8Array(32+ct.length);
+    new DataView(o.buffer).setUint32(0,28+ct.length);o.set(salt,4);o.set(iv,20);o.set(ct,32);
+    bits.push(o);$('#fill').style.width=((i+1)/n*40)+'%';
+  }
+  const file=new Blob(bits),meta={name:'study-'+stamp()+'.lamp',mimeType:'application/octet-stream',appProperties:{lamp:'1',ext,dur:String(dur),at:String(Date.now()),size:String(blob.size)}};
+  say('Uploading to Google Drive…');
+  const init=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable',{method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json; charset=UTF-8','X-Upload-Content-Type':'application/octet-stream','X-Upload-Content-Length':file.size},body:JSON.stringify(meta)}).catch(()=>null);
+  const loc=init&&init.ok&&init.headers.get('Location');
+  if(!loc){btn.disabled=false;return say('Drive refused the upload'+(init?' (error '+init.status+')':'')+'. Check that the Drive API is enabled for your project.')}
+  const st=await new Promise(res=>{const x=new XMLHttpRequest();x.open('PUT',loc);x.upload.onprogress=e=>{$('#fill').style.width=(40+e.loaded/e.total*60)+'%'};x.onload=()=>res(x.status);x.onerror=()=>res(0);x.send(file)});
+  btn.disabled=false;
+  say(st===200||st===201?'Saved to Google Drive. Watch it in the Library tab.':'Drive upload failed (error '+st+'). Try again.');
+};
+
+function row(box,text,wl,xl,onW,onX){
+  const d=document.createElement('div');d.className='it';
+  const t=document.createElement('span');t.textContent=text;
+  const w=document.createElement('button');w.className='btn pri';w.textContent=wl;w.onclick=onW;
+  const x=document.createElement('button');x.className='btn';x.textContent=xl;x.onclick=onX;
+  d.append(t,w,x);box.append(d);
+}
+function play(out,ext){
+  if(pvUrl)URL.revokeObjectURL(pvUrl);
+  pvUrl=URL.createObjectURL(new Blob(out,{type:'video/'+ext}));
+  const v=$('#pv3');v.src=pvUrl;v.hidden=false;v.play().catch(()=>{});say3('Playing.');
+}
+async function renderDrive(){
+  let tok;try{tok=await gAuth()}catch(e){return say3(e.message)}
+  say3('Loading your Drive sessions…');
+  let j;
+  try{
+    const q=encodeURIComponent("appProperties has { key='lamp' and value='1' } and trashed=false");
+    const r=await fetch('https://www.googleapis.com/drive/v3/files?pageSize=50&orderBy='+encodeURIComponent('createdTime desc')+'&fields='+encodeURIComponent('files(id,appProperties)')+'&q='+q,{headers:{Authorization:'Bearer '+tok}});
+    if(!r.ok)throw new Error('error '+r.status);
+    j=await r.json();
+  }catch(e){return say3('Couldn’t load Drive ('+e.message+').')}
+  const box=$('#libD');box.textContent='';
+  if(!j.files.length){const p=document.createElement('p');p.className='small';p.textContent='No sessions on Drive yet.';box.append(p)}
+  j.files.forEach(f=>{
+    const a=f.appProperties||{};
+    row(box,new Date(+a.at||0).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})+', '+fmt(+a.dur||0)+' long, '+((+a.size||0)/1e6).toFixed(0)+' MB','Watch','Delete',()=>watchD(f),async()=>{
+      if(!confirm('Delete this session from Drive for good?'))return;
+      await fetch('https://www.googleapis.com/drive/v3/files/'+f.id,{method:'DELETE',headers:{Authorization:'Bearer '+tok}}).catch(()=>{});
+      renderDrive();
+    });
+  });
+  say3('');
+}
+$('#rD').onclick=renderDrive;
+async function watchD(f){
+  const pw=$('#pw3').value;
+  if(!pw)return say3('Enter your password first.');
+  let b;
+  try{
+    const tok=await gAuth();say3('Downloading from Drive…');
+    const r=await fetch('https://www.googleapis.com/drive/v3/files/'+f.id+'?alt=media',{headers:{Authorization:'Bearer '+tok}});
+    if(!r.ok)throw new Error('error '+r.status);
+    b=new Uint8Array(await r.arrayBuffer());
+  }catch(e){return say3('Couldn’t download from Drive ('+e.message+').')}
+  try{
+    const dv=new DataView(b.buffer),out=[];let key,o=0;
+    while(o<b.length){
+      const L=dv.getUint32(o),q=b.slice(o+4,o+4+L);
+      key=key||await deriveKey(pw,q.slice(0,16));
+      out.push(await crypto.subtle.decrypt({name:'AES-GCM',iv:q.slice(16,28)},key,q.slice(28)));
+      o+=4+L;
+    }
+    play(out,(f.appProperties||{}).ext||'webm');
+  }catch(e){say3('Wrong password.')}
+}
 </script>
 </body>
 </html>
