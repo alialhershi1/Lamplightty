@@ -138,8 +138,15 @@ $('#dim').onclick=e=>{
 };
 
 async function start(){
-  try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:$('#mic').checked})}
-  catch(e){say('Camera access is blocked. Allow it in your browser’s site settings, then try again.');return}
+  const au=$('#mic').checked,md=navigator.mediaDevices;
+  try{stream=await md.getUserMedia({video:{facingMode:{exact:'user'}},audio:au})}
+  catch(e){
+    try{
+      const cams=(await md.enumerateDevices()).filter(d=>d.kind==='videoinput');
+      const fr=cams.find(d=>/front|user|selfie/i.test(d.label));
+      stream=await md.getUserMedia({video:fr?{deviceId:{exact:fr.deviceId}}:{facingMode:'user'},audio:au});
+    }catch(e2){say('Camera access is blocked. Allow it in your browser’s site settings, then try again.');return}
+  }
   $('#cam').srcObject=stream;$('#cam').play().catch(()=>{});
   const mt=['video/webm;codecs=vp9,opus','video/webm','video/mp4'].find(t=>window.MediaRecorder&&MediaRecorder.isTypeSupported(t))||'';
   ext=mt.includes('mp4')?'mp4':'webm';
